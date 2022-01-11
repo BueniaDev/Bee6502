@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-option(BUILD_SDL2 "Enables the SDL2 frontend (requires SDL2)." OFF)
+option(BUILD_M6502_SDL2 "Enables the SDL2 frontend (requires SDL2)." OFF)
 
 set(BEE6502_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -21,7 +21,7 @@ set(BEE6502_HEADERS
 set(BEE6502_SOURCES
 	Bee6502/bee6502.cpp)
 
-if (BUILD_SDL2 STREQUAL "ON")
+if (BUILD_M6502_SDL2 STREQUAL "ON")
 	message(STATUS "Building Bee6502-SDL2...")
 	add_subdirectory(Bee6502-SDL2)
 endif()

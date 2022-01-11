@@ -45,8 +45,8 @@ namespace bee6502
     {
 	is_inst_fetch = true;
 	is_reset = true;
-	regaccum = 0xAA;
-	regx = 0;
+	regaccum = 0;
+	regx = 0x80;
 	regy = 0;
 	status_reg = 0;
 	ir = 0;
@@ -85,6 +85,21 @@ namespace bee6502
 	    }
 	}
 
+	exec_opcode();
+
+	cycle_count += 1;
+
+	if (is_inst_fetch)
+	{
+	    inst_cycles = cycle_count;
+	    cycle_count = 0;
+	}
+
+	update_status();
+    }
+
+    void Bee6502::exec_opcode()
+    {
 	switch (get_opcode_cycle(ir, cycle_count))
 	{
 	    // BRK
@@ -160,12 +175,12 @@ namespace bee6502
 	    // ADC zp
 	    case get_opcode_cycle(0x65, 0):
 	    {
-		data_val1 = readByte(pc++);
+		addr_val = readByte(pc++);
 	    }
 	    break;
 	    case get_opcode_cycle(0x65, 1):
 	    {
-		data_val0 = readByte(data_val1);
+		data_val0 = readByte(addr_val);
 	    }
 	    break;
 	    case get_opcode_cycle(0x65, 2):
@@ -189,16 +204,25 @@ namespace bee6502
 	    // STA zp
 	    case get_opcode_cycle(0x85, 0):
 	    {
-		data_val1 = readByte(pc++);
+		addr_val = readByte(pc++);
 	    }
 	    break;
 	    case get_opcode_cycle(0x85, 1):
 	    {
-		writeByte(data_val1, regaccum);
+		writeByte(addr_val, regaccum);
 	    }
 	    break;
 	    case get_opcode_cycle(0x85, 2):
 	    {
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // TXA
+	    case get_opcode_cycle(0x8A, 0): break;
+	    case get_opcode_cycle(0x8A, 1):
+	    {
+		regaccum = regx;
+		set_nz(regaccum);
 		is_inst_fetch = true;
 	    }
 	    break;
@@ -242,6 +266,93 @@ namespace bee6502
 	    }
 	    break;
 	    case get_opcode_cycle(0x8E, 3):
+	    {
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // STA zp,X
+	    case get_opcode_cycle(0x95, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x95, 1):
+	    {
+		addr_val = ((data_val0 + regx) & 0xFF);
+	    }
+	    break;
+	    case get_opcode_cycle(0x95, 2):
+	    {
+		writeByte(addr_val, regaccum);
+	    }
+	    break;
+	    case get_opcode_cycle(0x95, 3):
+	    {
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // STA abs,Y
+	    case get_opcode_cycle(0x99, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x99, 1):
+	    {
+		data_val1 = readByte(pc++);
+		addr_val = ((data_val1 << 8) | data_val0);
+	    }
+	    break;
+	    case get_opcode_cycle(0x99, 2):
+	    {
+		data_val1 = (addr_val >> 8);
+		data_val0 = ((addr_val + regy) & 0xFF);
+	    }
+	    break;
+	    case get_opcode_cycle(0x99, 3):
+	    {
+		addr_val += regy;
+		writeByte(addr_val, regaccum);
+	    }
+	    break;
+	    case get_opcode_cycle(0x99, 4):
+	    {
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // TXS
+	    case get_opcode_cycle(0x9A, 0): break;
+	    case get_opcode_cycle(0x9A, 1):
+	    {
+		sp = regx;
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // STA abs,X
+	    case get_opcode_cycle(0x9D, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x9D, 1):
+	    {
+		data_val1 = readByte(pc++);
+		addr_val = ((data_val1 << 8) | data_val0);
+	    }
+	    break;
+	    case get_opcode_cycle(0x9D, 2):
+	    {
+		data_val1 = (addr_val >> 8);
+		data_val0 = ((addr_val + regx) & 0xFF);
+	    }
+	    break;
+	    case get_opcode_cycle(0x9D, 3):
+	    {
+		addr_val += regx;
+		writeByte(addr_val, regaccum);
+	    }
+	    break;
+	    case get_opcode_cycle(0x9D, 4):
 	    {
 		is_inst_fetch = true;
 	    }
@@ -321,6 +432,14 @@ namespace bee6502
 		is_inst_fetch = true;
 	    }
 	    break;
+	    // CLD
+	    case get_opcode_cycle(0xD8, 0): break;
+	    case get_opcode_cycle(0xD8, 1):
+	    {
+		set_decimal(false);
+		is_inst_fetch = true;
+	    }
+	    break;
 	    // CPX #imm
 	    case get_opcode_cycle(0xE0, 0):
 	    {
@@ -357,16 +476,6 @@ namespace bee6502
 	    break;
 	    default: unrecognized_instr(); break;
 	}
-
-	cycle_count += 1;
-
-	if (is_inst_fetch)
-	{
-	    inst_cycles = cycle_count;
-	    cycle_count = 0;
-	}
-
-	update_status();
     }
 
     void Bee6502::set_nz(uint8_t value)
