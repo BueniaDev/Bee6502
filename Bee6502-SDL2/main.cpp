@@ -47,12 +47,18 @@ class Easy6502Interface : public Bee6502Interface
 	    cout << filename << " succesfully loaded." << endl;
 	    file.close();
 
-	    copy(rom_data.begin(), rom_data.end(), (memory.begin() + 0x600));
+	    load_code(rom_data);
+
+	    return true;
+	}
+
+	void load_code(vector<uint8_t> mach_code)
+	{
+	    // Copy code to offset of 0x600
+	    copy(mach_code.begin(), mach_code.end(), (memory.begin() + 0x600));
 	    // Initialize reset vector to 0x600
 	    memory[0xFFFC] = 0x00;
 	    memory[0xFFFD] = 0x06;
-
-	    return true;
 	}
 
 	bool init()
@@ -274,6 +280,7 @@ class Easy6502Interface : public Bee6502Interface
 
 int main(int argc, char *argv[])
 {
+    /*
     if (argc < 2)
     {
 	cout << "Usage: Bee6502-SDL2 <ROM>" << endl;
@@ -281,13 +288,24 @@ int main(int argc, char *argv[])
     }
 
     string filename = argv[1];
+    */
     Bee6502 core;
     Easy6502Interface *inter = new Easy6502Interface(core);
 
+    /*
     if (!inter->load_file(filename))
     {
 	return 1;
     }
+    */
+
+    inter->load_code({
+	0xA9, 0xC0,
+	0xA8,
+	0xC8,
+	0x69, 0xC4,
+	0x00
+    });
 
     if (!inter->init())
     {

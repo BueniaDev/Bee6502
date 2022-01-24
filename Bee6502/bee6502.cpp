@@ -98,6 +98,138 @@ namespace bee6502
 	update_status();
     }
 
+    size_t Bee6502::disassembleinstr(ostream &stream, size_t pc)
+    {
+	size_t prev_pc = pc;
+
+	uint8_t opcode = readByte(pc++);
+	uint8_t param1 = readByte(pc);
+	uint8_t param2 = readByte(pc + 1);
+	uint16_t param16 = ((param2 << 8) | param1);
+
+	uint16_t branch_offs = ((prev_pc + 2) + int8_t(param1));
+
+	switch (opcode)
+	{
+	    case 0x00: stream << "brk"; break;
+	    case 0x10:
+	    {
+		stream << "bpl " << hex << int(branch_offs);
+		pc += 1;
+	    }
+	    break;
+	    case 0x29:
+	    {
+		stream << "and #$" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
+	    case 0x65:
+	    {
+		stream << "adc $" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
+	    case 0x69:
+	    {
+		stream << "adc #$" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
+	    case 0x85:
+	    {
+		stream << "sta $" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
+	    case 0x8A: stream << "txa"; break;
+	    case 0x8D:
+	    {
+		stream << "sta $" << hex << int(param16);
+		pc += 2;
+	    }
+	    break;
+	    case 0x8E:
+	    {
+		stream << "stx $" << hex << int(param16);
+		pc += 2;
+	    }
+	    break;
+	    case 0x95:
+	    {
+		stream << "sta $" << hex << int(param1) << ", y";
+		pc += 1;
+	    }
+	    break;
+	    case 0x98: stream << "tya"; break;
+	    case 0x99:
+	    {
+		stream << "sta $" << hex << int(param16) << ", y";
+		pc += 2;
+	    }
+	    break;
+	    case 0x9A: stream << "txs"; break;
+	    case 0x9D:
+	    {
+		stream << "sta $" << hex << int(param16) << ", x";
+		pc += 2;
+	    }
+	    break;
+	    case 0xA2:
+	    {
+		stream << "ldx #$" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
+	    case 0xA8: stream << "tay"; break;
+	    case 0xA9:
+	    {
+		stream << "lda #$" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
+	    case 0xAA: stream << "tax"; break;
+	    case 0xAD:
+	    {
+		stream << "lda $" << hex << int(param16);
+		pc += 2;
+	    }
+	    break;
+	    case 0xC8: stream << "iny"; break;
+	    case 0xC9:
+	    {
+		stream << "cmp #$" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
+	    case 0xCA: stream << "dex"; break;
+	    case 0xD0:
+	    {
+		stream << "bne " << hex << int(branch_offs);
+		pc += 1;
+	    }
+	    break;
+	    case 0xD8: stream << "cld"; break;
+	    case 0xE0:
+	    {
+		stream << "cpx #$" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
+	    case 0xE8: stream << "inx"; break;
+	    case 0xEA: stream << "nop"; break;
+	    case 0xF0:
+	    {
+		stream << "beq " << hex << int(branch_offs);
+		pc += 1;
+	    }
+	    break;
+	    default: stream << "und " << hex << int(opcode); break;
+	}
+
+	return (pc - prev_pc);
+    }
+
     void Bee6502::exec_opcode()
     {
 	switch (get_opcode_cycle(ir, cycle_count))
@@ -169,6 +301,50 @@ namespace bee6502
 	    case get_opcode_cycle(0x00, 6):
 	    {
 		pc = ((data_val1 << 8) | data_val0);
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // BPL rel
+	    case get_opcode_cycle(0x10, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x10, 1):
+	    {
+		addr_val = (pc + int8_t(data_val0));
+
+		if (is_sign())
+		{
+		    is_inst_fetch = true;
+		}
+	    }
+	    break;
+	    case get_opcode_cycle(0x10, 2):
+	    {
+		if ((addr_val & 0xFF00) == (pc & 0xFF00))
+		{
+		    pc = addr_val;
+		    is_inst_fetch = true;
+		}
+	    }
+	    break;
+	    case get_opcode_cycle(0x10, 3):
+	    {
+		pc = addr_val;
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // AND #imm
+	    case get_opcode_cycle(0x29, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x29, 1):
+	    {
+		regaccum &= data_val0;
+		set_nz(regaccum);
 		is_inst_fetch = true;
 	    }
 	    break;
@@ -291,6 +467,15 @@ namespace bee6502
 		is_inst_fetch = true;
 	    }
 	    break;
+	    // TYA
+	    case get_opcode_cycle(0x98, 0): break;
+	    case get_opcode_cycle(0x98, 1):
+	    {
+		regaccum = regy;
+		set_nz(regaccum);
+		is_inst_fetch = true;
+	    }
+	    break;
 	    // STA abs,Y
 	    case get_opcode_cycle(0x99, 0):
 	    {
@@ -370,6 +555,15 @@ namespace bee6502
 		is_inst_fetch = true;
 	    }
 	    break;
+	    // TAY
+	    case get_opcode_cycle(0xA8, 0): break;
+	    case get_opcode_cycle(0xA8, 1):
+	    {
+		regy = regaccum;
+		set_nz(regy);
+		is_inst_fetch = true;
+	    }
+	    break;
 	    // LDA #imm
 	    case get_opcode_cycle(0xA9, 0):
 	    {
@@ -389,6 +583,50 @@ namespace bee6502
 	    {
 		regx = regaccum;
 		set_nz(regx);
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // LDA abs
+	    case get_opcode_cycle(0xAD, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0xAD, 1):
+	    {
+		data_val1 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0xAD, 2):
+	    {
+		addr_val = ((data_val1 << 8) | data_val0);
+	    }
+	    break;
+	    case get_opcode_cycle(0xAD, 3):
+	    {
+		regaccum = readByte(addr_val);
+		set_nz(regaccum);
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // INY
+	    case get_opcode_cycle(0xC8, 0): break;
+	    case get_opcode_cycle(0xC8, 1):
+	    {
+		regy += 1;
+		set_nz(regy);
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // CMP #imm
+	    case get_opcode_cycle(0xC9, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0xC9, 1):
+	    {
+		cmp_internal(regaccum);
 		is_inst_fetch = true;
 	    }
 	    break;
@@ -461,7 +699,7 @@ namespace bee6502
 		is_inst_fetch = true;
 	    }
 	    break;
-	    // SBC #imm
+	    // SBC #imm (WIP)
 	    case get_opcode_cycle(0xE9, 0):
 	    {
 		data_val0 = readByte(pc++);
@@ -471,6 +709,37 @@ namespace bee6502
 	    case get_opcode_cycle(0xEA, 0): break;
 	    case get_opcode_cycle(0xEA, 1):
 	    {
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // BEQ rel
+	    case get_opcode_cycle(0xF0, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0xF0, 1):
+	    {
+		addr_val = (pc + int8_t(data_val0));
+
+		if (!is_zero())
+		{
+		    is_inst_fetch = true;
+		}
+	    }
+	    break;
+	    case get_opcode_cycle(0xF0, 2):
+	    {
+		if ((addr_val & 0xFF00) == (pc & 0xFF00))
+		{
+		    pc = addr_val;
+		    is_inst_fetch = true;
+		}
+	    }
+	    break;
+	    case get_opcode_cycle(0xF0, 3):
+	    {
+		pc = addr_val;
 		is_inst_fetch = true;
 	    }
 	    break;
@@ -555,6 +824,13 @@ namespace bee6502
 	cout << "P: " << hex << int(main_status.regstatus) << endl;
 	cout << "SP: " << hex << int(main_status.sp) << endl;
 	cout << "IR: " << hex << int(main_status.ir) << endl;
+
+	if (print_disassembly)
+	{
+	    stringstream dasm_str;
+	    disassembleinstr(dasm_str, main_status.pc);
+	    cout << "Current instruction: " << dasm_str.str() << endl;
+	}
     }
 
     uint8_t Bee6502::readByte(uint16_t addr)

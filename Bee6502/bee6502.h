@@ -86,6 +86,8 @@ namespace bee6502
 	    
 	    void debugoutput(bool print_disassembly = true);
 
+	    size_t disassembleinstr(ostream &stream, size_t pc);
+
 	private:
 	    template<typename T>
 	    bool testbit(T reg, int bit)
@@ -165,6 +167,11 @@ namespace bee6502
 	    uint8_t current_instr = 0;
 
 	    void set_nz(uint8_t value);
+
+	    bool is_sign()
+	    {
+		return testbit(status_reg, 7);
+	    }
 
 	    void set_sign(bool val)
 	    {
