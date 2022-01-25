@@ -140,7 +140,8 @@ class Easy6502Interface : public Bee6502Interface
 
 	    if ((core.getStatus().pc == 0) && !is_stopped)
 	    {
-		uint16_t pc_val = (((memory[0x1FD] << 8) | memory[0x1FC]) - 2);
+		uint16_t addr = (core.getStatus().sp + 2);
+		uint16_t pc_val = (((memory[addr + 1] << 8) | memory[addr]) - 2);
 		cout << "Program stopped at $" << hex << int(pc_val) << endl;
 		is_stopped = true;
 	    }
@@ -300,10 +301,15 @@ int main(int argc, char *argv[])
     */
 
     inter->load_code({
-	0xA9, 0xC0,
-	0xA8,
-	0xC8,
-	0x69, 0xC4,
+	0x20, 0x09, 0x06,
+	0x20, 0x0C, 0x06,
+	0x20, 0x12, 0x06,
+	0xA2, 0x00,
+	0x60,
+	0xE8,
+	0xE0, 0x05,
+	0xD0, 0xFB,
+	0x60,
 	0x00
     });
 

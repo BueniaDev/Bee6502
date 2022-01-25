@@ -72,6 +72,8 @@ namespace bee6502
 
 	    void setBCD(bool is_enabled);
 
+	    void fire_irq(bool line);
+
 	    Status getStatus();
 
 	    int runinstruction()	
@@ -147,14 +149,19 @@ namespace bee6502
 	    uint8_t data_val0 = 0;
 	    uint8_t data_val1 = 0;
 
+	    bool is_irq = false;
+
 	    bool is_rw = false;
 	    bool is_inst_fetch = false;
 	    bool is_reset = false;
 	    int cycle_count = 0;
 	    int inst_cycles = 0;
 
+	    uint32_t irq_pip = 0;
+
 	    int brk_flags = 0;
 
+	    const int irq_brk = 0;
 	    const int reset_brk = 2;
 
 	    bool is_bcd = false;
@@ -183,6 +190,11 @@ namespace bee6502
 		status_reg = changebit(status_reg, 6, val);
 	    }
 
+	    void set_brk(bool val)
+	    {
+		status_reg = changebit(status_reg, 4, val);
+	    }
+
 	    bool is_decimal()
 	    {
 		return testbit(status_reg, 3);
@@ -191,6 +203,11 @@ namespace bee6502
 	    void set_decimal(bool val)
 	    {
 		status_reg = changebit(status_reg, 3, val);
+	    }
+
+	    bool is_irq_disable()
+	    {
+		return testbit(status_reg, 2);
 	    }
 
 	    bool is_zero()

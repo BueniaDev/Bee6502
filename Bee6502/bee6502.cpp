@@ -45,6 +45,8 @@ namespace bee6502
     {
 	is_inst_fetch = true;
 	is_reset = true;
+	is_irq = false;
+	irq_pip = 0;
 	regaccum = 0;
 	regx = 0x80;
 	regy = 0;
@@ -59,14 +61,30 @@ namespace bee6502
 	cout << "Bee6502::Shutting down...." << endl;
     }
 
+    void Bee6502::fire_irq(bool line)
+    {
+	is_irq = line;
+    }
+
     void Bee6502::runcycle()
     {
-	if (is_inst_fetch || is_reset)
+	if (is_inst_fetch || is_reset || is_irq)
 	{
+	    if (is_irq && !is_irq_disable())
+	    {
+		irq_pip = setbit(irq_pip, 8);
+		is_irq = false;
+	    }
+
 	    if (is_inst_fetch)
 	    {
 		ir = readByte(pc);
 		is_inst_fetch = false;
+
+		if (testbit(irq_pip, 10))
+		{
+		    brk_flags = setbit(brk_flags, irq_brk);
+		}
 
 		if (is_reset)
 		{
@@ -76,6 +94,7 @@ namespace bee6502
 		if (brk_flags)
 		{
 		    ir = 0;
+		    set_brk(false);
 		    is_reset = false;
 		}
 		else
@@ -118,12 +137,19 @@ namespace bee6502
 		pc += 1;
 	    }
 	    break;
+	    case 0x20:
+	    {
+		stream << "jsr $" << hex << int(param16);
+		pc += 2;
+	    }
+	    break;
 	    case 0x29:
 	    {
 		stream << "and #$" << hex << int(param1);
 		pc += 1;
 	    }
 	    break;
+	    case 0x60: stream << "rts"; break;
 	    case 0x65:
 	    {
 		stream << "adc $" << hex << int(param1);
@@ -142,7 +168,20 @@ namespace bee6502
 		pc += 1;
 	    }
 	    break;
+	    case 0x86:
+	    {
+		stream << "stx $" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
+	    case 0x88: stream << "dey"; break;
 	    case 0x8A: stream << "txa"; break;
+	    case 0x8C:
+	    {
+		stream << "sty $" << hex << int(param16);
+		pc += 2;
+	    }
+	    break;
 	    case 0x8D:
 	    {
 		stream << "sta $" << hex << int(param16);
@@ -175,6 +214,12 @@ namespace bee6502
 		pc += 2;
 	    }
 	    break;
+	    case 0xA0:
+	    {
+		stream << "ldy #$" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
 	    case 0xA2:
 	    {
 		stream << "ldx #$" << hex << int(param1);
@@ -192,6 +237,18 @@ namespace bee6502
 	    case 0xAD:
 	    {
 		stream << "lda $" << hex << int(param16);
+		pc += 2;
+	    }
+	    break;
+	    case 0xB0:
+	    {
+		stream << "bcs " << hex << int(branch_offs);
+		pc += 1;
+	    }
+	    break;
+	    case 0xBD:
+	    {
+		stream << "lda $" << hex << int(param16) << ", x";
 		pc += 2;
 	    }
 	    break;
@@ -325,11 +382,42 @@ namespace bee6502
 		if ((addr_val & 0xFF00) == (pc & 0xFF00))
 		{
 		    pc = addr_val;
+		    irq_pip >>= 1;
 		    is_inst_fetch = true;
 		}
 	    }
 	    break;
 	    case get_opcode_cycle(0x10, 3):
+	    {
+		pc = addr_val;
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // JSR abs
+	    case get_opcode_cycle(0x20, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x20, 1): break;
+	    case get_opcode_cycle(0x20, 2):
+	    {
+		writeByte((0x100 | sp), (pc >> 8));
+		sp -= 1;
+	    }
+	    break;
+	    case get_opcode_cycle(0x20, 3):
+	    {
+		writeByte((0x100 | sp), (pc & 0xFF));
+		sp -= 1;
+	    }
+	    break;
+	    case get_opcode_cycle(0x20, 4):
+	    {
+		addr_val = ((readByte(pc) << 8) | data_val0);
+	    }
+	    break;
+	    case get_opcode_cycle(0x20, 5):
 	    {
 		pc = addr_val;
 		is_inst_fetch = true;
@@ -345,6 +433,35 @@ namespace bee6502
 	    {
 		regaccum &= data_val0;
 		set_nz(regaccum);
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // RTS
+	    case get_opcode_cycle(0x60, 0): break;
+	    case get_opcode_cycle(0x60, 1):
+	    {
+		sp += 1;
+		data_val0 = readByte((0x100 | sp));
+	    }
+	    break;
+	    case get_opcode_cycle(0x60, 2):
+	    {
+		sp += 1;
+		data_val1 = readByte((0x100 | sp));
+	    }
+	    break;
+	    case get_opcode_cycle(0x60, 3):
+	    {
+		addr_val = ((data_val1 << 8) | data_val0);
+	    }
+	    break;
+	    case get_opcode_cycle(0x60, 4):
+	    {
+		pc = (addr_val + 1);
+	    }
+	    break;
+	    case get_opcode_cycle(0x60, 5):
+	    {
 		is_inst_fetch = true;
 	    }
 	    break;
@@ -393,12 +510,59 @@ namespace bee6502
 		is_inst_fetch = true;
 	    }
 	    break;
+	    // STX zp
+	    case get_opcode_cycle(0x86, 0):
+	    {
+		addr_val = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x86, 1):
+	    {
+		writeByte(addr_val, regx);
+	    }
+	    break;
+	    case get_opcode_cycle(0x86, 2):
+	    {
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // DEY
+	    case get_opcode_cycle(0x88, 0): break;
+	    case get_opcode_cycle(0x88, 1):
+	    {
+		regy -= 1;
+		set_nz(regy);
+		is_inst_fetch = true;
+	    }
+	    break;
 	    // TXA
 	    case get_opcode_cycle(0x8A, 0): break;
 	    case get_opcode_cycle(0x8A, 1):
 	    {
 		regaccum = regx;
 		set_nz(regaccum);
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // STY abs
+	    case get_opcode_cycle(0x8C, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x8C, 1):
+	    {
+		data_val1 = readByte(pc++);
+		addr_val = ((data_val1 << 8) | data_val0);
+	    }
+	    break;
+	    case get_opcode_cycle(0x8C, 2):
+	    {
+		writeByte(addr_val, regy);
+	    }
+	    break;
+	    case get_opcode_cycle(0x8C, 3):
+	    {
 		is_inst_fetch = true;
 	    }
 	    break;
@@ -542,6 +706,19 @@ namespace bee6502
 		is_inst_fetch = true;
 	    }
 	    break;
+	    // LDY #imm
+	    case get_opcode_cycle(0xA0, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0xA0, 1):
+	    {
+		regy = data_val0;
+		set_nz(regy);
+		is_inst_fetch = true;
+	    }
+	    break;
 	    // LDX #imm
 	    case get_opcode_cycle(0xA2, 0):
 	    {
@@ -609,6 +786,67 @@ namespace bee6502
 		is_inst_fetch = true;
 	    }
 	    break;
+	    // BCS rel
+	    case get_opcode_cycle(0xB0, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0xB0, 1):
+	    {
+		addr_val = (pc + int8_t(data_val0));
+
+		if (!is_carry())
+		{
+		    is_inst_fetch = true;
+		}
+	    }
+	    break;
+	    case get_opcode_cycle(0xB0, 2):
+	    {
+		if ((addr_val & 0xFF00) == (pc & 0xFF00))
+		{
+		    pc = addr_val;
+		    irq_pip >>= 1;
+		    is_inst_fetch = true;
+		}
+	    }
+	    break;
+	    case get_opcode_cycle(0xB0, 3):
+	    {
+		pc = addr_val;
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // LDA abs, X
+	    case get_opcode_cycle(0xBD, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0xBD, 1):
+	    {
+		data_val1 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0xBD, 2):
+	    {
+		addr_val = ((data_val1 << 8) | data_val0);
+		ir += ((~((addr_val >> 8) - ((addr_val + regx) >> 8))) & 1);
+	    }
+	    break;
+	    case get_opcode_cycle(0xBD, 3):
+	    {
+		addr_val += regx;
+	    }
+	    break;
+	    case get_opcode_cycle(0xBD, 4):
+	    {
+		regaccum = readByte(addr_val);
+		set_nz(regaccum);
+		is_inst_fetch = true;
+	    }
+	    break;
 	    // INY
 	    case get_opcode_cycle(0xC8, 0): break;
 	    case get_opcode_cycle(0xC8, 1):
@@ -660,6 +898,7 @@ namespace bee6502
 		if ((addr_val & 0xFF00) == (pc & 0xFF00))
 		{
 		    pc = addr_val;
+		    irq_pip >>= 1;
 		    is_inst_fetch = true;
 		}
 	    }
@@ -733,6 +972,7 @@ namespace bee6502
 		if ((addr_val & 0xFF00) == (pc & 0xFF00))
 		{
 		    pc = addr_val;
+		    irq_pip >>= 1;
 		    is_inst_fetch = true;
 		}
 	    }
@@ -745,6 +985,8 @@ namespace bee6502
 	    break;
 	    default: unrecognized_instr(); break;
 	}
+
+	irq_pip <<= 1;
     }
 
     void Bee6502::set_nz(uint8_t value)
