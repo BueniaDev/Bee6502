@@ -133,6 +133,7 @@ namespace bee6502
 	    void exec_opcode();
 
 	    uint8_t adc_internal();
+	    uint8_t sbc_internal();
 	    void cmp_internal(uint8_t reg);
 
 	    void unrecognized_instr();
