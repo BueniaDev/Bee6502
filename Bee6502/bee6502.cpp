@@ -149,6 +149,12 @@ namespace bee6502
 		pc += 1;
 	    }
 	    break;
+	    case 0x59:
+	    {
+		stream << "eor $" << hex << int(param16) << ", x";
+		pc += 2;
+	    }
+	    break;
 	    case 0x60: stream << "rts"; break;
 	    case 0x65:
 	    {
@@ -432,6 +438,36 @@ namespace bee6502
 	    case get_opcode_cycle(0x29, 1):
 	    {
 		regaccum &= data_val0;
+		set_nz(regaccum);
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // EOR abs, Y
+	    case get_opcode_cycle(0x59, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x59, 1):
+	    {
+		data_val1 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x59, 2):
+	    {
+		addr_data = ((data_val1 << 8) | data_val0);
+		addr_val = ((addr_data & 0xFF00) + ((addr_data + regy) & 0xFF));
+		ir += ((~((addr_data >> 8) - ((addr_data + regy) >> 8))) & 1);
+	    }
+	    break;
+	    case get_opcode_cycle(0x59, 3):
+	    {
+		addr_val = (addr_data + regy);
+	    }
+	    break;
+	    case get_opcode_cycle(0x59, 4):
+	    {
+		regaccum ^= readByte(addr_val);
 		set_nz(regaccum);
 		is_inst_fetch = true;
 	    }
@@ -1003,7 +1039,10 @@ namespace bee6502
 
     void Bee6502::unrecognized_instr()
     {
-	cout << "Unrecognized instruction of " << hex << int(ir) << ", cycle of " << dec << int(cycle_count) << endl;
+	uint16_t ir_val = (ir - 1);
+	uint8_t ir_instr = (ir_val >> 3);
+	int ir_cycles = (ir_val & 0x7);
+	cout << "Unrecognized instruction of " << hex << int(ir_instr) << ", cycle of " << dec << int(ir_cycles) << endl;
 	exit(1);
     }
 
