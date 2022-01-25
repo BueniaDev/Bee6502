@@ -143,9 +143,10 @@ namespace bee6502
 	    uint8_t status_reg = 0;
 	    uint8_t sp = 0;
 	    uint16_t pc = 0;
-	    uint8_t ir = 0;
+	    uint16_t ir = 0;
 
 	    uint16_t addr_val = 0;
+	    uint16_t addr_data = 0;
 	    uint8_t data_val0 = 0;
 	    uint8_t data_val1 = 0;
 

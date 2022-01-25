@@ -78,7 +78,7 @@ namespace bee6502
 
 	    if (is_inst_fetch)
 	    {
-		ir = readByte(pc);
+		ir = (readByte(pc) << 3);
 		is_inst_fetch = false;
 
 		if (testbit(irq_pip, 10))
@@ -289,7 +289,7 @@ namespace bee6502
 
     void Bee6502::exec_opcode()
     {
-	switch (get_opcode_cycle(ir, cycle_count))
+	switch (ir++)
 	{
 	    // BRK
 	    case get_opcode_cycle(0x00, 0): break;
@@ -831,13 +831,14 @@ namespace bee6502
 	    break;
 	    case get_opcode_cycle(0xBD, 2):
 	    {
-		addr_val = ((data_val1 << 8) | data_val0);
-		ir += ((~((addr_val >> 8) - ((addr_val + regx) >> 8))) & 1);
+		addr_data = ((data_val1 << 8) | data_val0);
+		addr_val = ((addr_data & 0xFF00) + ((addr_data + regx) & 0xFF));
+		ir += ((~((addr_data >> 8) - ((addr_data + regx) >> 8))) & 1);
 	    }
 	    break;
 	    case get_opcode_cycle(0xBD, 3):
 	    {
-		addr_val += regx;
+		addr_val = (addr_data + regx);
 	    }
 	    break;
 	    case get_opcode_cycle(0xBD, 4):
@@ -1049,7 +1050,7 @@ namespace bee6502
 	main_status.regstatus = (status_reg | 0x20);
 	main_status.sp = (0x100 | sp);
 	main_status.pc = pc;
-	main_status.ir = ir;
+	main_status.ir = (ir >> 3);
     }
 
     Bee6502::Status Bee6502::getStatus()
