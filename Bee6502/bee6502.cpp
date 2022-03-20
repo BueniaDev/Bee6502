@@ -91,6 +91,8 @@ namespace bee6502
 		    brk_flags = setbit(brk_flags, reset_brk);
 		}
 
+		irq_pip &= 0x3FF;
+
 		if (brk_flags)
 		{
 		    ir = 0;
