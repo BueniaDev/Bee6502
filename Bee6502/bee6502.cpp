@@ -195,6 +195,12 @@ namespace bee6502
 		pc += 1;
 	    }
 	    break;
+	    case 0x84:
+	    {
+		stream << "sty $" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
 	    case 0x85:
 	    {
 		stream << "sta $" << hex << int(param1);
@@ -677,6 +683,22 @@ namespace bee6502
 	    case get_opcode_cycle(0x69, 1):
 	    {
 		regaccum = adc_internal();
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // STY zp
+	    case get_opcode_cycle(0x84, 0):
+	    {
+		addr_val = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x84, 1):
+	    {
+		writeByte(addr_val, regy);
+	    }
+	    break;
+	    case get_opcode_cycle(0x84, 2):
+	    {
 		is_inst_fetch = true;
 	    }
 	    break;
@@ -1348,6 +1370,8 @@ namespace bee6502
 	uint8_t ir_instr = (ir_val >> 3);
 	int ir_cycles = (ir_val & 0x7);
 	cout << "Unrecognized instruction of " << hex << int(ir_instr) << ", cycle of " << dec << int(ir_cycles) << endl;
+	debugoutput();
+	cout << endl;
 	exit(1);
     }
 
