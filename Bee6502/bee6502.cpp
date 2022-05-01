@@ -133,6 +133,12 @@ namespace bee6502
 	switch (opcode)
 	{
 	    case 0x00: stream << "brk"; break;
+	    case 0x05:
+	    {
+		stream << "ora $" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
 	    case 0x09:
 	    {
 		stream << "ora #$" << hex << int(param1);
@@ -245,9 +251,15 @@ namespace bee6502
 		pc += 1;
 	    }
 	    break;
+	    case 0x94:
+	    {
+		stream << "sty $" << hex << int(param1) << ", x";
+		pc += 1;
+	    }
+	    break;
 	    case 0x95:
 	    {
-		stream << "sta $" << hex << int(param1) << ", y";
+		stream << "sta $" << hex << int(param1) << ", x";
 		pc += 1;
 	    }
 	    break;
@@ -451,6 +463,24 @@ namespace bee6502
 	    case get_opcode_cycle(0x00, 6):
 	    {
 		pc = ((data_val1 << 8) | data_val0);
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // ORA zp
+	    case get_opcode_cycle(0x05, 0):
+	    {
+		addr_val = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x05, 1):
+	    {
+		data_val0 = readByte(addr_val);
+	    }
+	    break;
+	    case get_opcode_cycle(0x05, 2):
+	    {
+		regaccum |= data_val0;
+		set_nz(regaccum);
 		is_inst_fetch = true;
 	    }
 	    break;
@@ -871,6 +901,27 @@ namespace bee6502
 	    case get_opcode_cycle(0x90, 3):
 	    {
 		pc = addr_val;
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // STY zp,X
+	    case get_opcode_cycle(0x94, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x94, 1):
+	    {
+		addr_val = ((data_val0 + regx) & 0xFF);
+	    }
+	    break;
+	    case get_opcode_cycle(0x94, 2):
+	    {
+		writeByte(addr_val, regy);
+	    }
+	    break;
+	    case get_opcode_cycle(0x94, 3):
+	    {
 		is_inst_fetch = true;
 	    }
 	    break;
