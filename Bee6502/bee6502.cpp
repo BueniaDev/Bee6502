@@ -158,6 +158,12 @@ namespace bee6502
 		pc += 1;
 	    }
 	    break;
+	    case 0x45:
+	    {
+		stream << "eor $" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
 	    case 0x49:
 	    {
 		stream << "eor #$" << hex << int(param1);
@@ -540,6 +546,24 @@ namespace bee6502
 	    case get_opcode_cycle(0x29, 1):
 	    {
 		regaccum &= data_val0;
+		set_nz(regaccum);
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // EOR zp
+	    case get_opcode_cycle(0x45, 0):
+	    {
+		addr_val = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x45, 1):
+	    {
+		data_val0 = readByte(addr_val);
+	    }
+	    break;
+	    case get_opcode_cycle(0x45, 2):
+	    {
+		regaccum ^= data_val0;
 		set_nz(regaccum);
 		is_inst_fetch = true;
 	    }
