@@ -207,6 +207,12 @@ namespace bee6502
 		pc += 1;
 	    }
 	    break;
+	    case 0x75:
+	    {
+		stream << "adc $" << hex << int(param1) << ", x";
+		pc += 1;
+	    }
+	    break;
 	    case 0x84:
 	    {
 		stream << "sty $" << hex << int(param1);
@@ -735,6 +741,28 @@ namespace bee6502
 	    }
 	    break;
 	    case get_opcode_cycle(0x69, 1):
+	    {
+		regaccum = adc_internal();
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // ADC zp,X
+	    case get_opcode_cycle(0x75, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0x75, 1):
+	    {
+		addr_val = ((data_val0 + regx) & 0xFF);
+	    }
+	    break;
+	    case get_opcode_cycle(0x75, 2):
+	    {
+		data_val0 = readByte(addr_val);
+	    }
+	    break;
+	    case get_opcode_cycle(0x75, 3):
 	    {
 		regaccum = adc_internal();
 		is_inst_fetch = true;
