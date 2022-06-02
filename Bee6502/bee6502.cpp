@@ -295,6 +295,12 @@ namespace bee6502
 		pc += 1;
 	    }
 	    break;
+	    case 0xA4:
+	    {
+		stream << "ldy $" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
 	    case 0xA5:
 	    {
 		stream << "lda $" << hex << int(param1);
@@ -375,6 +381,12 @@ namespace bee6502
 	    case 0xE0:
 	    {
 		stream << "cpx #$" << hex << int(param1);
+		pc += 1;
+	    }
+	    break;
+	    case 0xE4:
+	    {
+		stream << "cpx $" << hex << int(param1);
 		pc += 1;
 	    }
 	    break;
@@ -1075,6 +1087,24 @@ namespace bee6502
 		is_inst_fetch = true;
 	    }
 	    break;
+	    // LDY zp
+	    case get_opcode_cycle(0xA4, 0):
+	    {
+		addr_val = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0xA4, 1):
+	    {
+		data_val0 = readByte(addr_val);
+	    }
+	    break;
+	    case get_opcode_cycle(0xA4, 2):
+	    {
+		regaccum = data_val0;
+		set_nz(regaccum);
+		is_inst_fetch = true;
+	    }
+	    break;
 	    // LDA zp
 	    case get_opcode_cycle(0xA5, 0):
 	    {
@@ -1385,6 +1415,23 @@ namespace bee6502
 	    }
 	    break;
 	    case get_opcode_cycle(0xE0, 1):
+	    {
+		cmp_internal(regx);
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // CPX zp
+	    case get_opcode_cycle(0xE4, 0):
+	    {
+		addr_val = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0xE4, 1):
+	    {
+		data_val0 = readByte(addr_val);
+	    }
+	    break;
+	    case get_opcode_cycle(0xE4, 2):
 	    {
 		cmp_internal(regx);
 		is_inst_fetch = true;
