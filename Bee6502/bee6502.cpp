@@ -164,10 +164,20 @@ namespace bee6502
 		pc += 1;
 	    }
 	    break;
+	    case 0x38:
+	    {
+		stream << "sec";
+	    }
+	    break;
 	    case 0x45:
 	    {
 		stream << "eor $" << hex << int(param1);
 		pc += 1;
+	    }
+	    break;
+	    case 0x48:
+	    {
+		stream << "pha";
 	    }
 	    break;
 	    case 0x49:
@@ -199,6 +209,11 @@ namespace bee6502
 	    {
 		stream << "adc $" << hex << int(param1);
 		pc += 1;
+	    }
+	    break;
+	    case 0x68:
+	    {
+		stream << "pla";
 	    }
 	    break;
 	    case 0x69:
@@ -374,6 +389,12 @@ namespace bee6502
 	    case 0xD0:
 	    {
 		stream << "bne " << hex << int(branch_offs);
+		pc += 1;
+	    }
+	    break;
+	    case 0xD5:
+	    {
+		stream << "cmp $" << hex << int(param1) << ", x";
 		pc += 1;
 	    }
 	    break;
@@ -598,6 +619,14 @@ namespace bee6502
 		is_inst_fetch = true;
 	    }
 	    break;
+	    // SEC
+	    case get_opcode_cycle(0x38, 0): break;
+	    case get_opcode_cycle(0x38, 1):
+	    {
+		set_carry(true);
+		is_inst_fetch = true;
+	    }
+	    break;
 	    // EOR zp
 	    case get_opcode_cycle(0x45, 0):
 	    {
@@ -613,6 +642,19 @@ namespace bee6502
 	    {
 		regaccum ^= data_val0;
 		set_nz(regaccum);
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // PHA
+	    case get_opcode_cycle(0x48, 0): break;
+	    case get_opcode_cycle(0x48, 1):
+	    {
+		writeByte((0x100 | sp), regaccum);
+		sp -= 1;
+	    }
+	    break;
+	    case get_opcode_cycle(0x48, 2):
+	    {
 		is_inst_fetch = true;
 	    }
 	    break;
@@ -743,6 +785,25 @@ namespace bee6502
 	    case get_opcode_cycle(0x65, 2):
 	    {
 		regaccum = adc_internal();
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // PLA
+	    case get_opcode_cycle(0x68, 0): break;
+	    case get_opcode_cycle(0x68, 1):
+	    {
+		sp += 1;
+	    }
+	    break;
+	    case get_opcode_cycle(0x68, 2):
+	    {
+		data_val0 = readByte(sp);
+	    }
+	    break;
+	    case get_opcode_cycle(0x68, 3):
+	    {
+		regaccum = data_val0;
+		set_nz(regaccum);
 		is_inst_fetch = true;
 	    }
 	    break;
@@ -1397,6 +1458,28 @@ namespace bee6502
 	    case get_opcode_cycle(0xD0, 3):
 	    {
 		pc = addr_val;
+		is_inst_fetch = true;
+	    }
+	    break;
+	    // CMP zp,X
+	    case get_opcode_cycle(0xD5, 0):
+	    {
+		data_val0 = readByte(pc++);
+	    }
+	    break;
+	    case get_opcode_cycle(0xD5, 1):
+	    {
+		addr_val = ((data_val0 + regx) & 0xFF);
+	    }
+	    break;
+	    case get_opcode_cycle(0xD5, 2):
+	    {
+		data_val0 = readByte(addr_val);
+	    }
+	    break;
+	    case get_opcode_cycle(0xD5, 3):
+	    {
+		cmp_internal(regaccum);
 		is_inst_fetch = true;
 	    }
 	    break;
