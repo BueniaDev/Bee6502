@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ ! -f "libbee6502.a" ]]; then
+if [[ ! -f "Bee6502/libbee6502.a" ]]; then
 	echo "Run this script from the directory where you built the Bee6502 engine."
 	exit 1
 fi

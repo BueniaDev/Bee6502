@@ -7,29 +7,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-option(BUILD_M6502_SDL2 "Enables the SDL2 frontend (requires SDL2)." OFF)
-
-set(BEE6502_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-set(BEE6502_HEADERS
-	Bee6502/bee6502.h)
+option(BUILD_M6502_SDL2 "Enables the SDL2 frontend (requires SDL2)." OFF)
 
-set(BEE6502_SOURCES
-	Bee6502/bee6502.cpp)
+add_subdirectory(Bee6502)
 
 if (BUILD_M6502_SDL2 STREQUAL "ON")
 	message(STATUS "Building Bee6502-SDL2...")
 	add_subdirectory(Bee6502-SDL2)
 endif()
-
-add_library(bee6502 ${BEE6502_SOURCES} ${BEE6502_HEADERS})
-target_include_directories(bee6502 PUBLIC ${BEE6502_INCLUDE_DIR})
-target_compile_definitions(bee6502 PRIVATE BEE6502_STATIC=1 _CRT_SECURE_NO_WARNINGS=1)
-add_library(libbee6502 ALIAS bee6502)
 
 if (WIN32)
     message(STATUS "Operating system is Windows.")

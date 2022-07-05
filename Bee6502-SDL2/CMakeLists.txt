@@ -10,8 +10,6 @@ set(EXAMPLE_SOURCES
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSDL_MAIN_HANDLED")
 
 add_executable(${PROJECT_NAME} ${EXAMPLE_SOURCES})
-
-include_directories(${LIBMBGB_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} libbee6502)
 
 find_package(SDL2 REQUIRED)

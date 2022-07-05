@@ -1,4 +1,4 @@
-#include <Bee6502/bee6502.h>
+#include <bee6502.h>
 #include <SDL2/SDL.h>
 #include <iostream>
 #include <fstream>
